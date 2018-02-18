@@ -9,34 +9,19 @@
 void Server::getMessageFromSocket(SOCKET clientSocket, bool finish)
 {
 	int dataSize = std::atoi(Helper::getStringPartFromSocket(clientSocket, 5).c_str()); // getting size of data
-	string data, user;
+	string data;
 	std::unique_lock<std::mutex> lckMessages(_mMessages, defer_lock);
 
-	if (finish) // finish == 207, not finish == 204
-	{
-		// poping first client and pushing 
-		user = _clientsList.front();
-		_clientsList.pop_back();
-		_clientsList.push_back(user);
-	}
 
-	if (dataSize != MAX_DATA_SIZE)
-	{
-		data = Helper::getStringPartFromSocket(clientSocket, dataSize); // getting data
+	lckMessages.try_lock();
+	_messagesQueue.push_back(data);
+	lckMessages.unlock();
 
-		lckMessages.try_lock();
-		_messagesQueue.push_back(data);
-		lckMessages.unlock();
+	_cvMessages.notify_all(); // updating all
 
-		cout << "Recieved update message from current client" << endl;
-		cout << "Send update message to all clients" << endl;
-
-		_cvMessages.notify_all(); // updating all sockets
-
-		lckMessages.lock();
-		_messagesQueue.pop_back(); // clearing message
-		lckMessages.unlock();
-	}
+	lckMessages.lock();
+	_messagesQueue.pop_back(); // clearing message
+	lckMessages.unlock();
 }
 
 void Server::updateMessagesQueue(SOCKET sc, string user)

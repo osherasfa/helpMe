@@ -6,39 +6,45 @@
 #include <thread>
 #include <mutex>
 
-void Server::getMessageFromSocket(SOCKET clientSocket, bool finish)
+deque<string> _messagesQueue;
+std::condition_variable _cvMessages;
+std::mutex _mMessages;
+
+void getMessageFromSocket(SOCKET clientSocket)
 {
-	int dataSize = std::atoi(Helper::getStringPartFromSocket(clientSocket, 5).c_str()); // getting size of data
-	string data;
-	std::unique_lock<std::mutex> lckMessages(_mMessages, defer_lock);
+	std::unique_lock<std::mutex> lckMessages(_mMessages, defer_lock); // not locked yet..
 
-
-	lckMessages.lock();
+	lckMessages.lock(); // locking
 	_messagesQueue.push_back(data);
-	lckMessages.unlock();
+	lckMessages.unlock(); 
 
-	_cvMessages.notify_all(); // updating all
+	_cvMessages.notify_all(); // updating all (updateMessageQueue continuing)
 
 	lckMessages.lock();
-	_messagesQueue.pop_back(); // clearing message
+	_messagesQueue.pop_back(); // clearing messageQueue
 	lckMessages.unlock();
 }
 
-void Server::updateMessagesQueue(SOCKET sc, string user)
+void updateMessagesQueue(SOCKET sc, string user)
 {
 	string message;
 
 	while (true)
 	{
-		std::unique_lock<std::mutex> lckMessages(_mMessages);
-		if (_messagesQueue.empty())
-			_cvMessages.wait(lckMessages);
+		std::unique_lock<std::mutex> lckMessages(_mMessages); // locking
+		if (_messagesQueue.empty()) // if messageQueue empty
+			_cvMessages.wait(lckMessages); // wait for notify
 		lckMessages.unlock();
 
 		lckMessages.lock();
-		message = _messagesQueue.front();
-		Helper::updateFile(PATH, message);
-		Helper::sendUpdateMessageToClient(sc, message, Helper::currUser(_clientsList), Helper::nextUser(_clientsList), Helper::getPositionFromClientList(_clientsList, user));
+		message = _messagesQueue.front(); // getting message from front of messagesQueue
+		Helper::updateFile(PATH, message); // updating file...
 		lckMessages.unlock();
 	}
+}
+
+void main()
+{
+	std::thread t1(updateMessagesQueue, someSocket, "user");
+	getMessageFromSocket(someSocket);
 }

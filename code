@@ -43,6 +43,7 @@ void updateMessagesQueue(SOCKET sc, string user)
 	}
 }
 
+
 void main()
 {
 	std::thread t1(updateMessagesQueue, someSocket, "user");

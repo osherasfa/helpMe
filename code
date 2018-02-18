@@ -13,7 +13,7 @@ void Server::getMessageFromSocket(SOCKET clientSocket, bool finish)
 	std::unique_lock<std::mutex> lckMessages(_mMessages, defer_lock);
 
 
-	lckMessages.try_lock();
+	lckMessages.lock();
 	_messagesQueue.push_back(data);
 	lckMessages.unlock();
 
